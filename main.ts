@@ -36,6 +36,16 @@ export default class MyPlugin extends Plugin {
 				new SampleModal(this.app).open();
 			}
 		});
+
+		this.addCommand({
+			id: 'hello-world',
+			name: 'Hello World',
+			callback: () => {
+				new Notice('Hello, World!!');
+			}
+		});
+
+
 		// This adds an editor command that can perform some operation on the current editor instance
 		this.addCommand({
 			id: 'sample-editor-command',
