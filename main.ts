@@ -1,32 +1,48 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import {App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, TextComponent} from 'obsidian';
 
 // Remember to rename these classes and interfaces!
 
-interface MyPluginSettings {
-	mySetting: string;
+interface GTDLPSettings {
+	tagCollector: string;
+	metaKeys: string[];
+	overdueBackgroundColor: string;
+	overdueFontColor: string;
+	overdueFontWeight: number;
+	dueTodayBackgroundColor: string;
+	dueTodayFontColor: string;
+	dueTodayFontWeight: number;
 }
 
-const DEFAULT_SETTINGS: MyPluginSettings = {
-	mySetting: 'default'
+const DEFAULT_SETTINGS: GTDLPSettings = {
+	tagCollector: '#todo',
+	metaKeys: ['due','priority','topic','completion'],
+	overdueBackgroundColor: '#351b1b',
+	overdueFontColor: '#ff6b6b',
+	overdueFontWeight: 600,
+	dueTodayBackgroundColor: '#565424',
+	dueTodayFontColor: '#ffffff',
+	dueTodayFontWeight: 600
 }
 
 export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
+	settings: GTDLPSettings;
 
 	async onload() {
 		await this.loadSettings();
 
 		// This creates an icon in the left ribbon.
-		const ribbonIconEl = this.addRibbonIcon('dice', 'Sample Plugin', (_evt: MouseEvent) => {
+
+		const ribbonIconEl = this.addRibbonIcon('list-checks', 'ToDo List Plugin', (_evt: MouseEvent) => {
 			// Called when the user clicks the icon.
 			new Notice('This is a notice!');
 		});
 		// Perform additional things with the ribbon
 		ribbonIconEl.addClass('my-plugin-ribbon-class');
 
+
 		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
 		const statusBarItemEl = this.addStatusBarItem();
-		statusBarItemEl.setText('Status Bar Text');
+		statusBarItemEl.setText('ToDo-List is Running');
 
 		// This adds a simple command that can be triggered anywhere
 		this.addCommand({
@@ -76,7 +92,7 @@ export default class MyPlugin extends Plugin {
 		});
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
+		this.addSettingTab(new GTDLPSettingsTab(this.app, this));
 
 		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
 		// Using this function will automatically remove the event listener when this plugin is disabled.
@@ -117,7 +133,7 @@ class SampleModal extends Modal {
 	}
 }
 
-class SampleSettingTab extends PluginSettingTab {
+class GTDLPSettingsTab extends PluginSettingTab {
 	plugin: MyPlugin;
 
 	constructor(app: App, plugin: MyPlugin) {
@@ -126,19 +142,113 @@ class SampleSettingTab extends PluginSettingTab {
 	}
 
 	display(): void {
-		const {containerEl} = this;
-
+		const { containerEl } = this;
 		containerEl.empty();
 
+		containerEl.createEl("h2", { text: "Glacial ToDo List — Settings" });
+
+		// tagCollector (simple text)
 		new Setting(containerEl)
-			.setName('Setting #1')
-			.setDesc('It\'s a secret')
-			.addText(text => text
-				.setPlaceholder('Enter your secret')
-				.setValue(this.plugin.settings.mySetting)
-				.onChange(async (value) => {
-					this.plugin.settings.mySetting = value;
+			.setName("Tag collector")
+			.setDesc("The tag that marks items to collect (e.g., #todo).")
+			.addText((txt) =>
+				txt
+					.setPlaceholder("#todo")
+					.setValue(this.plugin.settings.tagCollector)
+					.onChange(async (v) => {
+						this.plugin.settings.tagCollector = v.trim();
+						await this.plugin.saveSettings();
+					})
+			);
+
+		// metaKeys (CSV text area -> string[])
+		new Setting(containerEl)
+			.setName("Metadata keys")
+			.setDesc("Comma-separated in-line metadata keys that should be parsed by the To-Do List (e.g., due, priority, topic, completion).")
+			.addTextArea((ta) =>
+				ta
+					.setPlaceholder("due, priority, topic, completion")
+					.setValue(this.plugin.settings.metaKeys.join(", "))
+					.onChange(async (v) => {
+						this.plugin.settings.metaKeys = this.parseCsv(v);
+						await this.plugin.saveSettings();
+					})
+			);
+
+		// Colors (use color pickers)
+		new Setting(containerEl)
+			.setName("Overdue Task Background Color")
+			.addColorPicker((cp) =>
+				cp.setValue(this.plugin.settings.overdueBackgroundColor).onChange(async (v) => {
+					this.plugin.settings.overdueBackgroundColor = v;
 					await this.plugin.saveSettings();
-				}));
+				})
+			);
+
+		new Setting(containerEl)
+			.setName("Overdue Task Font Color")
+			.addColorPicker((cp) =>
+				cp.setValue(this.plugin.settings.overdueFontColor).onChange(async (v) => {
+					this.plugin.settings.overdueFontColor = v;
+					await this.plugin.saveSettings();
+				})
+			);
+
+		new Setting(containerEl)
+			.setName("Tasks Due Today Background Color")
+			.addColorPicker((cp) =>
+				cp.setValue(this.plugin.settings.dueTodayBackgroundColor).onChange(async (v) => {
+					this.plugin.settings.dueTodayBackgroundColor = v;
+					await this.plugin.saveSettings();
+				})
+			);
+
+		new Setting(containerEl)
+			.setName("Tasks Due Today Font Color")
+			.addColorPicker((cp) =>
+				cp.setValue(this.plugin.settings.dueTodayFontColor).onChange(async (v) => {
+					this.plugin.settings.dueTodayFontColor = v;
+					await this.plugin.saveSettings();
+				})
+			);
+
+		// Font weights (100–900 in steps of 100)
+		new Setting(containerEl)
+			.setName("Overdue Task Font Weight")
+			.setDesc("Font Weight from 100 to 900")
+			.addSlider((sl) =>
+				sl
+					.setLimits(100, 900, 100)
+					.setValue(this.plugin.settings.overdueFontWeight)
+					.setDynamicTooltip()
+					.onChange(async (v) => {
+						this.plugin.settings.overdueFontWeight = v;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Tasks Due Today Font Weight")
+			.setDesc("Font Weight from 100 to 900")
+			.addSlider((sl) =>
+				sl.setLimits(100, 900, 100)
+					.setValue(this.plugin.settings.dueTodayFontWeight)
+					.setDynamicTooltip()
+					.onChange(async (v) => {
+						this.plugin.settings.dueTodayFontWeight = v;
+						await this.plugin.saveSettings();
+					})
+			);
+
+	}
+
+	// ----- 4) tiny helpers -----
+	parseCsv(input: string): string[] {
+		return input
+			.split(",")
+			.map((s) => s.trim())
+			.filter((s) => s.length > 0);
 	}
 }
+
+
