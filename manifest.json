@@ -4,6 +4,6 @@
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
 	"description": "Adds To-Do List functionality to Obsidian across the entire vault.",
-	"author": "Mike Harris",
+	"author": "Glacial Drift",
 	"isDesktopOnly": false
 }
