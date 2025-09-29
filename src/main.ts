@@ -33,7 +33,7 @@ interface GTDLPSettings {
 	dueTodayFontWeight: number;
 }
 
-const DEFAULT_SETTINGS: GTDLPSettings = {
+const DEFAULT_SETTINGS: Partial<GTDLPSettings> = {
 	tagCollector: '#todo',
 	metaKeys: ['due','priority','topic','completion'],
 	colors: {
@@ -55,8 +55,8 @@ const DEFAULT_SETTINGS: GTDLPSettings = {
 }
 
 export default class MyPlugin extends Plugin {
-	settings: GTDLPSettings;
-	currentMode: ThemeMode = 'dark';
+	settings!: GTDLPSettings;
+	currentMode!: ThemeMode;
 	settingsTab?: GTDLPSettingsTab;
 
 	async onload() {
@@ -156,7 +156,10 @@ export default class MyPlugin extends Plugin {
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		const loaded = await this.loadData(); // returns parsed JSON or null
+		// deep clone defaults (works in modern Electron/Node; Obsidian’s fine)
+		const base = structuredClone(DEFAULT_SETTINGS);
+		this.settings = deepMerge(base, loaded ?? {});
 	}
 
 	async saveSettings() {
@@ -346,4 +349,26 @@ function colorRow (
 				}
 			});
 		});
+}
+
+// AI-written function to deep merge two json objects. The intention is that the target may have some parameters
+// that don't exist in the source. We don't want to overwrite the existence of those parameters by just cloning
+// and using the source. Instead, deep merge the source onto the target so that extra target properties are preserved.
+function deepMerge<T>(target: T, source: Partial<T>): T {
+	if (source == null) return target;
+	for (const [k, v] of Object.entries(source as Record<string, unknown>)) {
+		const key = k as keyof T;
+		if (Array.isArray(v)) {
+			// replace arrays from source (simple, predictable)
+			(target as any)[key] = v.slice();
+		} else if (v && typeof v === "object") {
+			if (typeof (target as any)[key] !== "object" || (target as any)[key] == null) {
+				(target as any)[key] = {};
+			}
+			deepMerge((target as any)[key], v as any);
+		} else {
+			(target as any)[key] = v as any;
+		}
+	}
+	return target;
 }
