@@ -17,6 +17,17 @@ main.js
 
 # obsidian
 data.json
+AGENTS.md
 
 # Exclude macOS Finder (System Explorer) View States
 .DS_Store
+
+.editorconfig
+.eslintignore
+.eslintrc
+esbuild.config.mjs
+.npmrc
+
+package-lock.json
+tsconfig.json
+version-bump.mjs
