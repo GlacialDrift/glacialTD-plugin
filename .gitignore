@@ -7,6 +7,10 @@
 
 # npm
 node_modules
+.nmprc
+
+#ESLint
+.eslintcache
 
 # Don't include the compiled main.js file in the repo.
 # They should be uploaded to GitHub releases instead.
@@ -15,19 +19,15 @@ main.js
 # Exclude sourcemaps
 *.map
 
-# obsidian
+# Exclude logs
+*.log
+
+# obsidian settings specific to me
 data.json
+
+# description of build requirements
 AGENTS.md
 
 # Exclude macOS Finder (System Explorer) View States
 .DS_Store
 
-.editorconfig
-.eslintignore
-.eslintrc
-esbuild.config.mjs
-.npmrc
-
-package-lock.json
-tsconfig.json
-version-bump.mjs
