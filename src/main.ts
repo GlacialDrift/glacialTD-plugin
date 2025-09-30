@@ -1,20 +1,13 @@
 import {
-	App,
-	ColorComponent,
-	Editor,
-	MarkdownView,
-	Modal,
 	Notice,
 	Plugin,
-	PluginSettingTab,
-	Setting,
-	TextComponent
 } from 'obsidian';
-import {DEFAULT_SETTINGS, GTDLPSettings, ModeColors, ThemeMode} from "./settings/types";
+import {GTDLPSettings, ModeColors, ThemeMode} from "./settings/types";
 import {GTDLPSettingsTab} from "./settings/SettingsTab";
-import {getThemeMode} from "./utils/theme";
+import {deriveThemeColors, getThemeMode} from "./utils/theme";
 import {deepMerge} from "./utils/merge";
 import {registerAllCommands} from "./commands";
+import {DEFAULT_SETTINGS} from "./settings/DefaultSettings";
 
 // Remember to rename these classes and interfaces!
 
@@ -82,7 +75,10 @@ export default class MyPlugin extends Plugin {
 	}
 
 	get activeColors(): ModeColors {
-		return this.settings.colors[this.currentMode];
+		if (this.settings.followThemeColors) {
+			return deriveThemeColors();                 // live theme values
+		}
+		return this.settings.colors[this.currentMode]; // your saved values
 	}
 
 }

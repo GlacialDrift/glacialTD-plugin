@@ -1,6 +1,8 @@
-import {App, PluginSettingTab, Setting} from "obsidian";
+import {App, Notice, PluginSettingTab, Setting} from "obsidian";
 import MyPlugin from "../main";
 import {colorRow} from "../ui/colorRow";
+import {deriveThemeColors} from "../utils/theme";
+import {bestOn, meetsContrast} from "../utils/color";
 
 
 export class GTDLPSettingsTab extends PluginSettingTab {
@@ -17,6 +19,7 @@ export class GTDLPSettingsTab extends PluginSettingTab {
 
 		const mode = this.plugin.currentMode;
 		const colors = this.plugin.activeColors;
+		const autoFont = this.plugin.settings.fontReset;
 
 		containerEl.createEl("h1", { text: "Glacial ToDo List — Settings" });
 		containerEl.createEl("h2", { text: "Behavior Settings"});
@@ -51,30 +54,101 @@ export class GTDLPSettingsTab extends PluginSettingTab {
 
 		containerEl.createEl("h2", { text: "Appearance Settings"});
 		containerEl.createEl("div", {
-			text: `Editing: ${mode.toUpperCase()} mode colors. To edit the other set, change Appearance (Light/Dark) in Obsidian.`,
+			text: `Editing ${mode.toUpperCase()} mode colors. To edit the other set, change Appearance (Light/Dark) in Obsidian.`,
 			cls: "setting-item-description",
 		});
 
-		// Colors (use color pickers)
-		colorRow(containerEl, "Overdue background",
-			() => colors.overdueBackgroundColor,
-			async (hex) => { colors.overdueBackgroundColor = hex; await this.plugin.saveSettings(); }
-		);
+		new Setting(containerEl)
+			.setName("Follow Theme Colors")
+			.setDesc("When on, the To-Do List colors will follow theme colors. Turn off to edit To-Do List colors")
+			.addToggle( (tog) => {
+				tog
+					.setValue(this.plugin.settings.followThemeColors)
+					.onChange(async (v) => {
+						this.plugin.settings.followThemeColors = v;
+						await this.plugin.saveSettings();
+						this.display()
+					})
+			});
 
-		colorRow(containerEl, "Overdue font color",
-			() => colors.overdueFontColor,
-			async (hex) => { colors.overdueFontColor = hex; await this.plugin.saveSettings(); }
-		);
+		if(!this.plugin.settings.followThemeColors){
+			new Setting(containerEl)
+				.setName("Reset Appearance to Defaults")
+				.setDesc("Reload the default settings of the currently selected theme")
+				.addButton( (but) =>{
+					but
+						.setButtonText("Reset")
+						.onClick( async () => {
+							const themeDefaults = deriveThemeColors();
 
-		colorRow(containerEl, "Due today background",
-			() => colors.dueTodayBackgroundColor,
-			async (hex) => { colors.dueTodayBackgroundColor = hex; await this.plugin.saveSettings(); }
-		);
+							this.plugin.settings.colors[mode] = {... themeDefaults};
+							this.plugin.settings.followThemeColors = true;
+							await this.plugin.saveSettings();
+							this.display();
+							new Notice("Colors reset to theme defaults");
+						})
+				});
 
-		colorRow(containerEl, "Due today font color",
-			() => colors.dueTodayFontColor,
-			async (hex) => { colors.dueTodayFontColor = hex; await this.plugin.saveSettings(); }
-		);
+			new Setting(containerEl)
+				.setName("Reset Font Color on Background Change")
+				.setDesc("When the background color for either 'Overdue' or 'Due Today' is modified and this toggle is on, the corresponding font color will automatically update if necessary to ensure readability")
+				.addToggle( (tog) => {
+					tog
+						.setValue(this.plugin.settings.fontReset)
+						.onChange(async (v) => {
+							this.plugin.settings.fontReset = v;
+							await this.plugin.saveSettings();
+							this.display();
+						})
+				});
+
+			// Colors (use color pickers)
+			colorRow(containerEl, "Overdue background",
+				() => colors.overdueBackgroundColor,
+				async (hex) => {
+					this.plugin.settings.colors[mode].overdueBackgroundColor = hex;
+
+					if(autoFont){
+						const currentFont = this.plugin.settings.colors[mode].overdueFontColor;
+						if(!meetsContrast(hex, currentFont, 4.5)) {
+							this.plugin.settings.colors[mode].overdueFontColor = bestOn(hex);
+						}
+					}
+
+					await this.plugin.saveSettings();
+					this.display();
+				}
+			);
+
+			colorRow(containerEl, "Overdue font color",
+				() => colors.overdueFontColor,
+				async (hex) => { colors.overdueFontColor = hex; await this.plugin.saveSettings(); }
+			);
+
+			colorRow(containerEl, "Due today background",
+				() => colors.dueTodayBackgroundColor,
+				async (hex) => {
+					this.plugin.settings.colors[mode].dueTodayBackgroundColor = hex;
+
+					if(autoFont){
+						const currentFont = this.plugin.settings.colors[mode].dueTodayFontColor;
+						if(!meetsContrast(hex, currentFont, 4.5)) {
+							this.plugin.settings.colors[mode].dueTodayFontColor = bestOn(hex);
+						}
+					}
+
+					await this.plugin.saveSettings();
+					this.display();
+				}
+			);
+
+			colorRow(containerEl, "Due today font color",
+				() => colors.dueTodayFontColor,
+				async (hex) => { colors.dueTodayFontColor = hex; await this.plugin.saveSettings(); }
+			);
+		}
+
+
 
 		// Font weights (100–900 in steps of 100)
 		new Setting(containerEl)

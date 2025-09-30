@@ -27,7 +27,9 @@ export function colorRow (
 		})
 		.addColorPicker((c) => {
 			cp = c;
-			c.setValue(get()).onChange(async (v) => {
+			c
+				.setValue(get())
+				.onChange(async (v) => {
 				const hex = normalizeHex(v);
 				if (isHex(hex)) {
 					txt.setValue(hex);
